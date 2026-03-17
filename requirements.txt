@@ -1,0 +1,9 @@
+# ElevenLexa — Python dependencies
+# Install: pip3 install --break-system-packages -r requirements.txt
+
+websockets>=12.0    # OpenAI Realtime API WebSocket connection
+pygame>=2.6.0       # HDMI display (optional — falls back gracefully)
+
+# System packages (apt):
+#   sudo apt install fonts-nanum              # Korean/Hangul font
+#   sudo apt install pipewire pipewire-pulse  # Audio server
