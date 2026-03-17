@@ -31,7 +31,7 @@ A real-time AI voice assistant running on a **Raspberry Pi Zero 1.1**, powered b
 | **Computer** | Raspberry Pi Zero 1.1 (single-core ARMv6 @ 1 GHz, 512 MB RAM) |
 | **Speaker + Mic** | Soundcore Mini (Bluetooth) |
 | **Display** | Any 800×480 HDMI screen |
-| **Audio server** | PipeWire (with `module-echo-cancel`) |
+| **Audio server** | PipeWire |
 | **OS** | Raspberry Pi OS (Bookworm) |
 
 ---
@@ -83,8 +83,6 @@ The Soundcore Mini's microphone (HFP) is physically close to its own speaker, ma
 2. The microphone queue is flushed to discard any residual echo already captured.
 3. The microphone is unmuted.
 
-Additionally, PipeWire's `module-echo-cancel` (WebRTC AEC) is loaded at startup for a second layer of suppression.
-
 ### Why 200×120 internal canvas for the display?
 
 This project runs on a **Raspberry Pi Zero 1.1** — the original single-core ARMv6 @ 1 GHz with only 512 MB RAM and no dedicated GPU. This is one of the most constrained single-board computers available. Rendering at full 800×480 resolution every frame would saturate the CPU and starve the audio pipeline and WebSocket I/O.
@@ -124,7 +122,9 @@ sudo apt update
 sudo apt install -y pipewire pipewire-pulse fonts-nanum python3-pygame
 ```
 
-### 2. PipeWire echo cancellation (run once, survives reboots via autostart)
+### 2. PipeWire echo cancellation (optional)
+
+The software already mutes the microphone while the AI speaks. If you still experience echo, you can load PipeWire's WebRTC AEC module as an extra layer:
 
 ```bash
 pactl load-module module-echo-cancel aec_method=webrtc source_name=echo_cancel_source
