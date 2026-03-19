@@ -1,6 +1,7 @@
 # OpenLexaPi
 
 DIY Guide:  [LINK](https://xrchris.com/projects/openlexa/index.html)
+
 A real-time AI voice assistant running on a **Raspberry Pi Zero 1.1**, powered by the **OpenAI Realtime API**. Say a wake word to activate it, speak naturally, and it responds through a USB speaker. An animated robot face renders on an HDMI display.
 
 ```
