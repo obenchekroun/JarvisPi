@@ -69,7 +69,7 @@ except Exception as _de:
 # Configuration
 # ---------------------------------------------------------------------------
 
-OPENAI_API_KEY = "sk-proj"
+OPENAI_API_KEY = ""
 
 WS_URL      = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview"
 VOICE       = "verse"   # alloy, ash, ballad, coral, echo, fable,
@@ -92,7 +92,7 @@ PORCUPINE_ACCESS_KEY  = ""
 WAKE_WORD             = "jarvis"  # Built-in keyword name OR "custom"
 WAKE_WORD_MODEL_PATH  = ""          # Path to the .ppn file (only if WAKE_WORD="custom")
 WAKE_WORD_SAMPLE_RATE = 16000       # Porcupine always expects 16 kHz
-INACTIVITY_TIMEOUT    = 15         # Seconds of silence -> close session, enter sleep mode
+INACTIVITY_TIMEOUT    = 5          # Seconds of silence -> close session, enter sleep mode
 
 # PipeWire needs XDG_RUNTIME_DIR to locate the user session socket
 PIPEWIRE_ENV = {**os.environ, "XDG_RUNTIME_DIR": "/run/user/1000"}
@@ -141,7 +141,7 @@ def _get_default_sink() -> str | None:
     return None
 
 INSTRUCTIONS = (
-    "You are Peter, a warm and intelligent personal assistant running on a Raspberry Pi. "
+    "You are Jarvis, a warm and intelligent personal assistant running on a Raspberry Pi. "
     "IMPORTANT: Always respond in French — never German or any other language. "
     "Match the language the user speaks: if they speak French, reply in French; otherwise use English. "
     "The speech recognition may sometimes be inaccurate due to microphone quality. "
@@ -149,8 +149,46 @@ INSTRUCTIONS = (
     "If something is genuinely unclear, ask one short clarifying question. "
     "Never repeat back what the user said word-for-word. "
     "Be conversational, natural, and concise — like a smart friend, not a robot. "
-    "You can help with anything: questions, tasks, conversation, reminders, ideas."
+    "You can help with anything: questions, conversation, ideas."
 )
+
+# ---------------------------------------------------------------------------
+# LEDs
+# ---------------------------------------------------------------------------
+
+# GPIO Setup
+GPIO.setwarnings(False)
+
+GPIO.setmode(GPIO.BCM)
+led1_pin=18
+led2_pin=23
+
+GPIO.setup(led1_pin, GPIO.OUT)
+GPIO.output(led1_pin, GPIO.LOW)
+
+GPIO.setup(led2_pin, GPIO.OUT)
+GPIO.output(led2_pin, GPIO.LOW)
+
+def fade_leds(event):
+    pwm1 = GPIO.PWM(led1_pin, 200)
+    pwm2 = GPIO.PWM(led2_pin, 200)
+
+    event.clear()
+
+    while not event.is_set():
+        pwm1.start(0)
+        pwm2.start(0)
+        for dc in range(0, 101, 5):
+            pwm1.ChangeDutyCycle(dc)  
+            pwm2.ChangeDutyCycle(dc)
+            time.sleep(0.05)
+        time.sleep(0.75)
+        for dc in range(100, -1, -5):
+            pwm1.ChangeDutyCycle(dc)                
+            pwm2.ChangeDutyCycle(dc)
+            time.sleep(0.05)
+        time.sleep(0.75)
+
 
 
 # ---------------------------------------------------------------------------
@@ -296,6 +334,8 @@ def listen_for_wake_word(shutdown_flag) -> bool:
             pcm = list(struct.unpack_from(f"{porcupine.frame_length}h", data))
             if porcupine.process(pcm) >= 0:
                 print(f'Wake-Word "{WAKE_WORD}" detected!', flush=True)
+                GPIO.output(led1_pin, GPIO.HIGH) # LED on
+                GPIO.output(led2_pin, GPIO.HIGH) # LED on
                 detected = True
                 break
     except Exception as e:
@@ -482,7 +522,7 @@ async def realtime_session(
         }))
 
         # Trigger Peter's opening greeting immediately
-        await ws.send(json.dumps({"type": "response.create"}))
+        #await ws.send(json.dumps({"type": "response.create"}))
 
         ai_speaking = False
         _inactivity_task = None
@@ -551,6 +591,8 @@ async def realtime_session(
                             display.set_state(STATE_SPEAKING)
                             display.clear_text()
                     audio_bytes = base64.b64decode(event["delta"])
+                    # t_fade = threading.Thread(target=fade_leds, args=(led_event,)) # A vérifier
+                    # t_fade.start() # A vérifier
                     await loop.run_in_executor(None, player.write, audio_bytes)
 
                 elif etype == "response.audio_transcript.delta":
@@ -563,7 +605,7 @@ async def realtime_session(
                     ai_speaking = False
                     if display:
                         display.set_state(STATE_IDLE)
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(6)
                     flushed = 0
                     while not recorder.audio_queue.empty():
                         try:
@@ -575,6 +617,7 @@ async def realtime_session(
                         print(f"DEBUG: {flushed} Echo chunks discarded.", flush=True)
                     recorder.muted = False
                     print("DEBUG: AI finished — mic active.", flush=True)
+                    # led_event.set()
                     # Restart inactivity countdown after each AI response
                     await _arm_inactivity_timer()
 
@@ -656,6 +699,7 @@ def main():
     mode_str = f'Wake-Word "{WAKE_WORD}"' if wake_word_mode else "Always-On"
     print(f"Initializing JarvisPi — Mode: {mode_str}")
 
+
     display = EyeDisplay() if DISPLAY_AVAILABLE else None
     if display:
         display.start()
@@ -668,6 +712,9 @@ def main():
     loop       = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     stop_event = asyncio.Event()
+
+    # event flag for led
+    # led_event = threading.Event()
 
     # shutdown_flag for the synchronous wake-word thread (threading.Event)
     _shutdown_flag = threading.Event()
@@ -728,6 +775,8 @@ def main():
                 # Clean exit: checking if caused by inactivity or global shutdown
                 if session_stop.is_set() and not stop_event.is_set():
                     # Inactivity -> End session, return to wake-word
+                    GPIO.output(led1_pin, GPIO.LOW)
+                    GPIO.output(led2_pin, GPIO.LOW)
                     break
                 break  # stop_event or normal termination
 
