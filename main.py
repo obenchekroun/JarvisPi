@@ -47,6 +47,8 @@ import sys
 import threading
 import time
 
+import RPi.GPIO as GPIO
+
 try:
     import websockets
 except ImportError:
@@ -86,11 +88,11 @@ CHUNK_SIZE  = SAMPLE_RATE * 2 * CHUNK_MS // 1000  # bytes (16-bit = 2 bytes/samp
 # 3. Create your own keyword (.ppn file) using the Picovoice Console
 #    and set the path in WAKE_WORD_MODEL_PATH.
 # Leave empty -> Wake word disabled (always active as before)
-PORCUPINE_ACCESS_KEY  = "4dmycJDoeZar4JbxsgMCPmeoS4YSHIuIva8/gTwITeov+BFkgeOIvQ=="
-WAKE_WORD             = "computer"  # Eingebautes Keyword-Name ODER "custom"
-WAKE_WORD_MODEL_PATH  = ""          # Pfad zur .ppn-Datei (nur bei WAKE_WORD="custom")
-WAKE_WORD_SAMPLE_RATE = 16000       # Porcupine erwartet immer 16 kHz
-INACTIVITY_TIMEOUT    = 15          # Sekunden Stille → Session schließen, schlafen gehen
+PORCUPINE_ACCESS_KEY  = ""
+WAKE_WORD             = "jarvis"  # Built-in keyword name OR "custom"
+WAKE_WORD_MODEL_PATH  = ""          # Path to the .ppn file (only if WAKE_WORD="custom")
+WAKE_WORD_SAMPLE_RATE = 16000       # Porcupine always expects 16 kHz
+INACTIVITY_TIMEOUT    = 15         # Seconds of silence -> close session, enter sleep mode
 
 # PipeWire needs XDG_RUNTIME_DIR to locate the user session socket
 PIPEWIRE_ENV = {**os.environ, "XDG_RUNTIME_DIR": "/run/user/1000"}
@@ -397,7 +399,7 @@ class AudioRecorder:
         )
         threading.Thread(target=self._log_stderr, daemon=True).start()
         threading.Thread(target=self._read_loop, daemon=True).start()
-        print(f"DEBUG: pacat-record gestartet (PID: {self.process.pid})")
+        print(f"DEBUG: pacat-record started (PID: {self.process.pid})")
 
     def _log_stderr(self):
         for line in self.process.stderr:
@@ -413,9 +415,9 @@ class AudioRecorder:
                 if data and not self.muted:
                     self.audio_queue.put(data)
             except Exception as e:
-                print(f"DEBUG: Mic-Read Fehler: {e}", flush=True)
+                print(f"DEBUG: Mic read error: {e}", flush=True)
                 break
-        print("DEBUG: Mic-Thread beendet.", flush=True)
+        print("DEBUG: Mic thread terminated.", flush=True)
 
     def stop(self):
         self._running = False
@@ -456,9 +458,9 @@ async def realtime_session(
         "OpenAI-Beta": "realtime=v1",
     }
 
-    print("DEBUG: Verbinde mit OpenAI Realtime API...")
+    print("DEBUG: Connecting to OpenAI Realtime API...")
     async with websockets.connect(WS_URL, additional_headers=headers, max_size=None) as ws:
-        print("DEBUG: Verbunden!")
+        print("DEBUG: Connected!")
 
         # Configure the session parameters
         await ws.send(json.dumps({
@@ -499,8 +501,8 @@ async def realtime_session(
                 await asyncio.sleep(INACTIVITY_TIMEOUT)
                 if not _is_stopping():
                     print(
-                        f"\nDEBUG: Keine Aktivität seit {INACTIVITY_TIMEOUT}s — "
-                        "Verbindung getrennt, gehe schlafen.", flush=True
+                        f"\nDEBUG: No activity since {INACTIVITY_TIMEOUT}s — "
+                        "Connection closed, going to sleep.", flush=True
                     )
                     session_stop.set()
 
@@ -523,7 +525,7 @@ async def realtime_session(
                 except queue.Empty:
                     pass
                 except Exception as e:
-                    print(f"DEBUG: Send-Audio Fehler: {e}", flush=True)
+                    print(f"DEBUG: Audio send error: {e}", flush=True)
                     break
 
         async def receive_events():
@@ -540,11 +542,11 @@ async def realtime_session(
                     if not ai_speaking:
                         ai_speaking = True
                         recorder.muted = True
-                        # Timer stoppen während KI spricht — nicht einschlafen mid-sentence
+                        # Stop timer while AI is speaking — don't fall asleep mid-sentence
                         if _inactivity_task:
                             _inactivity_task.cancel()
                             _inactivity_task = None
-                        print("\nDEBUG: KI spricht — Mikrofon stumm.", flush=True)
+                        print("\nDEBUG: AI speaking — mic muted.", flush=True)
                         if display:
                             display.set_state(STATE_SPEAKING)
                             display.clear_text()
@@ -561,7 +563,7 @@ async def realtime_session(
                     ai_speaking = False
                     if display:
                         display.set_state(STATE_IDLE)
-                    await asyncio.sleep(2.5)
+                    await asyncio.sleep(5)
                     flushed = 0
                     while not recorder.audio_queue.empty():
                         try:
@@ -570,9 +572,9 @@ async def realtime_session(
                         except queue.Empty:
                             break
                     if flushed:
-                        print(f"DEBUG: {flushed} Echo-Chunks verworfen.", flush=True)
+                        print(f"DEBUG: {flushed} Echo chunks discarded.", flush=True)
                     recorder.muted = False
-                    print("DEBUG: KI fertig — Mikrofon aktiv.", flush=True)
+                    print("DEBUG: AI finished — mic active.", flush=True)
                     # Restart inactivity countdown after each AI response
                     await _arm_inactivity_timer()
 
@@ -585,18 +587,18 @@ async def realtime_session(
 
                 elif etype == "conversation.item.input_audio_transcription.completed":
                     # Whisper transcript of the user's speech
-                    print(f"\nDu: {event.get('transcript', '')}", flush=True)
+                    print(f"\nYou: {event.get('transcript', '')}", flush=True)
 
                 elif etype == "input_audio_buffer.speech_started":
                     # VAD detected user starting to speak — reset inactivity timer
-                    print("\nDEBUG: Sprache erkannt...", flush=True)
+                    print("\nDEBUG: Speech detected...", flush=True)
                     await _arm_inactivity_timer()
                     if display:
                         display.set_state(STATE_LISTENING)
                         display.clear_text()
 
                 elif etype == "error":
-                    print(f"\nFEHLER von OpenAI: {json.dumps(event, ensure_ascii=False)}", flush=True)
+                    print(f"\nOpenAI error: {json.dumps(event, ensure_ascii=False)}", flush=True)
 
                 elif etype not in {
                     # Known informational events — no action needed
@@ -652,7 +654,7 @@ def main():
     play_startup_sound()
     wake_word_mode = bool(PORCUPINE_ACCESS_KEY)
     mode_str = f'Wake-Word "{WAKE_WORD}"' if wake_word_mode else "Always-On"
-    print(f"Initialisiere ElevenLexa — Modus: {mode_str}")
+    print(f"Initializing JarvisPi — Mode: {mode_str}")
 
     display = EyeDisplay() if DISPLAY_AVAILABLE else None
     if display:
@@ -661,17 +663,17 @@ def main():
     player   = AudioPlayer()
     recorder = AudioRecorder()
     player.start()
-    # recorder wird nur im aktiven Modus gestartet (pacat-Konflikt mit Wake-Word-pacat)
+    # Recorder only starts in active mode (prevents pacat conflict with wake-word)
 
     loop       = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     stop_event = asyncio.Event()
 
-    # shutdown_flag für den synchronen Wake-Word-Thread (threading.Event)
+    # shutdown_flag for the synchronous wake-word thread (threading.Event)
     _shutdown_flag = threading.Event()
 
     def shutdown(sig, frame):
-        print("\nBeende...")
+        print("\nShutting down...")
         _shutdown_flag.set()
         loop.call_soon_threadsafe(stop_event.set)
 
@@ -680,14 +682,14 @@ def main():
 
     async def run():
         """
-        Haupt-Schleife:
-          SCHLAFEN  → Wake-Word abwarten (blockierend in Thread-Executor)
-          AKTIV     → OpenAI-Session, reconnect bei Verbindungsabbruch
-          → Inaktivität → zurück zu SCHLAFEN
+        Main Loop:
+          SLEEPING -> Wait for wake-word (blocking in ThreadExecutor)
+          ACTIVE   -> OpenAI session; reconnects if connection drops
+          -> Inactivity -> Return to SLEEPING state
         """
         while not stop_event.is_set():
 
-            # ── SCHLAFEN: Wake-Word abwarten ─────────────────────────────
+            # ── SLEEPING - Waiting for wake word... ─────────────────────────────
             if wake_word_mode:
                 if display:
                     display.set_state(STATE_SLEEPING)
@@ -701,15 +703,15 @@ def main():
 
                 play_wake_sound()
 
-            # ── AKTIV: Mikrofon + OpenAI-Session ─────────────────────────
+            # ── ACTIVE - Microphone + OpenAI session ─────────────────────────
             if display:
                 display.set_state(STATE_IDLE)
 
             recorder.start()
-            print("--- Voice-Modus aktiv. Sprich mit Peter! ---")
+            print("--- Voice mode active. Talk to Peter! ---")
 
-            # Reconnect-Schleife innerhalb einer aktiven Session
-            # (trennt z.B. bei Netzwerkabbruch, aber nicht bei Inaktivitäts-Timeout)
+            # Reconnect loop within an active session
+            # (Retries on network drops, but not on inactivity timeout)
             while not stop_event.is_set():
                 session_stop = asyncio.Event()
                 try:
@@ -719,22 +721,22 @@ def main():
                 except Exception as e:
                     if stop_event.is_set():
                         break
-                    print(f"DEBUG: Verbindung unterbrochen ({e}), reconnect in 3s...", flush=True)
+                    print(f"DEBUG: Connection dropped ({e}), reconnect in 3s...", flush=True)
                     await asyncio.sleep(3)
                     continue  # Reconnect
 
-                # Sauber beendet: prüfen ob Inaktivität oder globaler Shutdown
+                # Clean exit: checking if caused by inactivity or global shutdown
                 if session_stop.is_set() and not stop_event.is_set():
-                    # Inaktivität → Session beenden, zurück zu Wake-Word
+                    # Inactivity -> End session, return to wake-word
                     break
-                break  # stop_event oder normales Ende
+                break  # stop_event or normal termination
 
             recorder.stop()
 
             if stop_event.is_set():
                 break
 
-            # Wenn kein Wake-Word-Modus: sofort reconnecten (Always-On-Fallback)
+            # If no wake-word mode: reconnect immediately (always-on fallback)
             if not wake_word_mode:
                 await asyncio.sleep(3)
 
@@ -742,7 +744,7 @@ def main():
         loop.run_until_complete(run())
     except Exception as e:
         import traceback
-        print(f"Fehler: {e}")
+        print(f"Error: {e}")
         traceback.print_exc()
     finally:
         player.stop()

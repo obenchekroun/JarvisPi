@@ -251,8 +251,7 @@ python3 main.py
 ``` bash
 amixer set Master 65536
 ```
-
- with a value between 0 and 65536
+with a value between 0 and 65536
 
 
 ---
