@@ -1,5 +1,5 @@
 """
-ElevenLexa — AI Voice Assistant
+JarvisPi — AI Voice Assistant
 ================================
 Raspberry Pi voice assistant powered by the OpenAI Realtime API.
 
@@ -22,9 +22,15 @@ Display (optional):
   EyeDisplay renders a retro robot face on the HDMI display.
   Falls back gracefully when no display is available (SSH / headless).
 
+LED (optional)
+  LED for eyes as status indicator, with 220 Ohms resistors
+
 Hardware:
-  Raspberry Pi 4/5, Soundcore Mini Bluetooth Speaker,
+  Raspberry Pi 4/5, Soundcore Mini Bluetooth Speaker, or usb mic and speaker
   PipeWire audio server (with module-echo-cancel loaded at startup)
+
+Case:
+  3D printed case for RPi 4/5 with sockets for the LED eyes.
 
 Start:
   python3 main.py
@@ -73,13 +79,13 @@ CHUNK_SIZE  = SAMPLE_RATE * 2 * CHUNK_MS // 1000  # bytes (16-bit = 2 bytes/samp
 # ---------------------------------------------------------------------------
 # Wake-Word Configuration (Porcupine — offline, ~1 % CPU on Pi Zero)
 # ---------------------------------------------------------------------------
-# 1. Gratis-Account: https://console.picovoice.ai  → "Access Key" kopieren
-# 2. Eingebaute freie Keywords: alexa, americano, blueberry, bumblebee,
+# 1. Free account: https://console.picovoice.ai -> Copy your "Access Key"
+# 2. Built-in free keywords: alexa, americano, blueberry, bumblebee,
 #    grapefruit, grasshopper, hey barista, hey google, hey siri,
 #    jarvis, ok google, picovoice, porcupine, terminator
-# 3. Eigenes Keyword (.ppn-Datei) mit dem Picovoice Console erstellen
-#    und den Pfad in WAKE_WORD_MODEL_PATH eintragen.
-# Leer lassen → Wake-Word deaktiviert (immer aktiv wie bisher)
+# 3. Create your own keyword (.ppn file) using the Picovoice Console
+#    and set the path in WAKE_WORD_MODEL_PATH.
+# Leave empty -> Wake word disabled (always active as before)
 PORCUPINE_ACCESS_KEY  = "4dmycJDoeZar4JbxsgMCPmeoS4YSHIuIva8/gTwITeov+BFkgeOIvQ=="
 WAKE_WORD             = "computer"  # Eingebautes Keyword-Name ODER "custom"
 WAKE_WORD_MODEL_PATH  = ""          # Pfad zur .ppn-Datei (nur bei WAKE_WORD="custom")
@@ -92,22 +98,22 @@ PIPEWIRE_ENV = {**os.environ, "XDG_RUNTIME_DIR": "/run/user/1000"}
 
 def _get_default_source() -> str | None:
     """
-    Gibt das echte Mikrofon-Aufnahmegerät zurück.
-    Filtert .monitor-Quellen heraus (das sind Loopbacks vom Lautsprecher,
-    nicht das echte Mikrofon).
+    Returns the actual microphone recording device.
+    Filters out .monitor sources (which are speaker loopbacks, 
+    not the physical microphone).
     """
     try:
-        # Alle verfügbaren Sources holen
+        # Retrieve all available sources
         out = subprocess.check_output(
             ["pactl", "list", "sources", "short"], env=PIPEWIRE_ENV,
             stderr=subprocess.DEVNULL
         ).decode()
-        # Erste alsa_input.* Quelle nehmen (kein .monitor)
+        # Take the first alsa_input.* source (excluding .monitor)
         for line in out.splitlines():
             parts = line.split()
             if len(parts) >= 2 and "alsa_input" in parts[1]:
                 return parts[1]
-        # Fallback: Default Source aus pactl info (auch wenn .monitor)
+        # Fallback: Default source from 'pactl info' (even if .monitor)
         out2 = subprocess.check_output(
             ["pactl", "info"], env=PIPEWIRE_ENV, stderr=subprocess.DEVNULL
         ).decode()
@@ -120,7 +126,7 @@ def _get_default_source() -> str | None:
 
 
 def _get_default_sink() -> str | None:
-    """Fragt PipeWire nach dem aktuellen Standard-Wiedergabegerät."""
+    """Queries PipeWire for the current default playback device."""
     try:
         out = subprocess.check_output(
             ["pactl", "info"], env=PIPEWIRE_ENV, stderr=subprocess.DEVNULL
@@ -134,8 +140,8 @@ def _get_default_sink() -> str | None:
 
 INSTRUCTIONS = (
     "You are Peter, a warm and intelligent personal assistant running on a Raspberry Pi. "
-    "IMPORTANT: Always respond in English or Korean only — never German or any other language. "
-    "Match the language the user speaks: if they speak Korean, reply in Korean; otherwise use English. "
+    "IMPORTANT: Always respond in French — never German or any other language. "
+    "Match the language the user speaks: if they speak French, reply in French; otherwise use English. "
     "The speech recognition may sometimes be inaccurate due to microphone quality. "
     "Use context to interpret what the user likely meant, even if the transcript seems odd. "
     "If something is genuinely unclear, ask one short clarifying question. "
@@ -174,7 +180,7 @@ def _make_silence(duration_ms: int, sample_rate: int = 24000) -> bytes:
 
 def play_startup_sound():
     """Plays a short C-major arpeggio melody via pacat (no WAV file needed)."""
-    print("DEBUG: Starte Startup-Chime...")
+    print("DEBUG: Playing startup chime...")
     try:
         # C5 – E5 – G5 – C6  (ascending C-major arpeggio)
         notes = [
@@ -183,8 +189,7 @@ def play_startup_sound():
             (783.99, 160),   # G5
             (1046.5, 320),   # C6  (held longer for finish)
         ]
-        # 300 ms Stille vorab: weckt USB-Audiogerät aus dem Suspend auf,
-        # damit der erste Ton nicht verschluckt wird
+        # 300ms leading silence: wakes the USB audio device from suspend to prevent the start of the audio from being clipped.
         pcm = _make_silence(300) + b"".join(
             _make_tone(freq, dur) + _make_silence(40)
             for freq, dur in notes
@@ -201,9 +206,9 @@ def play_startup_sound():
         proc.stdin.flush()
         proc.stdin.close()
         proc.wait(timeout=5)
-        print("DEBUG: Startup-Chime abgespielt.")
+        print("DEBUG: Startup chime played.")
     except Exception as e:
-        print(f"DEBUG: Startup-Sound Fehler: {e}")
+        print(f"DEBUG: Startup sound error: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -211,7 +216,7 @@ def play_startup_sound():
 # ---------------------------------------------------------------------------
 
 def play_wake_sound():
-    """Zwei kurze Töne als Bestätigung nach Wake-Word-Erkennung."""
+    """Plays two short beeps to confirm wake-word recognition."""
     try:
         notes = [(880.0, 80), (1174.7, 120)]   # A5 – D6
         pcm = _make_silence(300) + b"".join(_make_tone(f, d) + _make_silence(20) for f, d in notes)
@@ -226,7 +231,7 @@ def play_wake_sound():
         proc.stdin.close()
         proc.wait(timeout=3)
     except Exception as e:
-        print(f"DEBUG: Wake-Sound Fehler: {e}")
+        print(f"Wake sound error:{e}")
 
 
 # ---------------------------------------------------------------------------
@@ -235,18 +240,18 @@ def play_wake_sound():
 
 def listen_for_wake_word(shutdown_flag) -> bool:
     """
-    Blockiert, bis das Wake-Word erkannt wird oder shutdown_flag gesetzt ist.
-    Gibt True zurück bei Erkennung, False bei Fehler oder Shutdown.
+    Blocks until the wake word is detected or the shutdown_flag is set.
+    Returns True on detection, False on error or shutdown.
 
-    Verwendet pacat bei 16 kHz (Porcupine-Anforderung) — kein pvrecorder nötig,
-    bleibt damit konsistent mit dem restlichen PipeWire-Ansatz.
+    Uses pacat at 16 kHz (Porcupine requirement) — no pvrecorder needed, 
+    staying consistent with the rest of the PipeWire approach.
     """
     import struct
 
     try:
         import pvporcupine
     except ImportError:
-        print("WARNUNG: pvporcupine nicht installiert — Wake-Word übersprungen.")
+        print("WARNING: pvporcupine not installed — Wake-word skipped.")
         print("         pip3 install --break-system-packages pvporcupine")
         return True
 
@@ -265,8 +270,8 @@ def listen_for_wake_word(shutdown_flag) -> bool:
                 keywords=[WAKE_WORD],
             )
     except Exception as e:
-        print(f"FEHLER: Porcupine konnte nicht geladen werden: {e}")
-        return True  # Graceful fallback: kein Wake-Word-Block
+        print(f"ERROR: Failed to load Porcupine: {e}")
+        return True  # Graceful fallback: bypassing wake-word block.
 
     frame_bytes = porcupine.frame_length * 2  # 16-bit = 2 Bytes/Sample
     cmd = ["pacat", "--record", "--format=s16le",
@@ -278,7 +283,7 @@ def listen_for_wake_word(shutdown_flag) -> bool:
         cmd, stdout=subprocess.PIPE, env=PIPEWIRE_ENV, stderr=subprocess.DEVNULL
     )
 
-    print(f'Schlafe — warte auf Wake-Word "{WAKE_WORD}"...', flush=True)
+    print(f'Sleeping — waiting for wake word "{WAKE_WORD}"...', flush=True)
     detected = False
 
     try:
@@ -288,11 +293,11 @@ def listen_for_wake_word(shutdown_flag) -> bool:
                 break
             pcm = list(struct.unpack_from(f"{porcupine.frame_length}h", data))
             if porcupine.process(pcm) >= 0:
-                print(f'Wake-Word "{WAKE_WORD}" erkannt!', flush=True)
+                print(f'Wake-Word "{WAKE_WORD}" detected!', flush=True)
                 detected = True
                 break
     except Exception as e:
-        print(f"DEBUG: Wake-Word Fehler: {e}", flush=True)
+        print(f"DEBUG: Wake word error: {e}", flush=True)
     finally:
         try:
             proc.terminate()
@@ -322,7 +327,7 @@ class AudioPlayer:
         """Start the pacat playback process."""
         cmd = ["pacat", "--playback", "--format=s16le",
                f"--rate={SAMPLE_RATE}", "--channels=1",
-               "--latency-msec=200"]   # Größerer Buffer → weniger Knacksen auf Pi Zero
+               "--latency-msec=200"]   # Larger buffer -> less crackling on Pi Zero
         sink = _get_default_sink()
         if sink:
             cmd.append(f"--device={sink}")
@@ -332,9 +337,9 @@ class AudioPlayer:
         threading.Thread(target=self._log_stderr, daemon=True).start()
         time.sleep(0.3)
         if self.process.poll() is not None:
-            print(f"DEBUG: KRITISCH - pacat-play sofort beendet! Exit Code: {self.process.poll()}")
+            print(f"DEBUG: CRITICAL - pacat-play terminated immediately! Exit Code: {self.process.poll()}")
         else:
-            print(f"DEBUG: pacat-play gestartet (PID: {self.process.pid})")
+            print(f"DEBUG: pacat-play started. (PID: {self.process.pid})")
 
     def _log_stderr(self):
         for line in self.process.stderr:
@@ -627,19 +632,19 @@ async def realtime_session(
 
 def _wait_for_audio_device(timeout: int = 30):
     """
-    Blockiert bis PipeWire ein echtes Audio-Gerät (kein auto_null) meldet.
-    Wichtig beim Autostart: USB-Geräte brauchen nach dem Boot etwas Zeit.
+    Wait for a valid PipeWire audio device (excluding auto_null).
+    Important: USB devices require extra time to become ready after the boot sequence.
     """
-    print("Warte auf Audio-Gerät...", flush=True)
+    print("Waiting for audio device...", flush=True)
     deadline = time.time() + timeout
     while time.time() < deadline:
         sink = _get_default_sink()
         source = _get_default_source()
         if sink and "auto_null" not in sink and source and "auto_null" not in source:
-            print(f"Audio-Gerät bereit: {sink.split('.')[-1]}", flush=True)
+            print(f"Audio device ready: {sink.split('.')[-1]}", flush=True)
             return
         time.sleep(2)
-    print("WARNUNG: Kein echtes Audio-Gerät gefunden, fahre trotzdem fort.", flush=True)
+    print("WARNING: No hardware audio device detected. Continuing regardless.", flush=True)
 
 
 def main():

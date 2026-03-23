@@ -1,7 +1,7 @@
 """
-ElevenLexa Display
+JarvisPi Display
 ==================
-Pygame-based HDMI display for the ElevenLexa voice assistant.
+Pygame-based HDMI display for the JarvisPi voice assistant.
 
 Rendering strategy (resource-efficient):
   - Eyes are drawn on a 200x120 internal canvas (25% resolution),
@@ -184,13 +184,13 @@ class EyeDisplay:
                 pygame.display.init()
                 screen = pygame.display.set_mode(
                     (OUT_W, OUT_H), pygame.FULLSCREEN | pygame.NOFRAME)
-                print(f"DEBUG Display: Treiber '{drv}' OK.", flush=True)
+                print(f"DEBUG Display: Driver '{drv}' OK.", flush=True)
                 break
             except Exception:
                 pygame.display.quit()
 
         if screen is None:
-            print("DEBUG Display: Kein Videotreiber verfügbar.", flush=True)
+            print("DEBUG Display: No video driver available.", flush=True)
             return
 
         pygame.font.init()
