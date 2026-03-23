@@ -193,9 +193,9 @@ Edit `main.py` and set:
 ```python
 OPENAI_API_KEY       = "sk-..."       # Your OpenAI API key
 PORCUPINE_ACCESS_KEY = "..."          # Your Picovoice access key (free)
-WAKE_WORD            = "computer"     # Built-in keyword, or "custom"
+WAKE_WORD            = "jarvis"     # Built-in keyword, or "custom"
 WAKE_WORD_MODEL_PATH = ""             # Path to .ppn file if WAKE_WORD = "custom"
-INACTIVITY_TIMEOUT   = 15            # Seconds of silence before going back to sleep
+INACTIVITY_TIMEOUT   = 5            # Seconds of silence before going back to sleep
 VOICE                = "verse"        # AI voice (alloy, echo, nova, shimmer, verse, ...)
 INSTRUCTIONS         = "..."          # System prompt / personality
 ```
@@ -248,11 +248,12 @@ python3 main.py
 
 ### 9. Set volume of speaker 
 
+In order to change the volume, use the following commands
 ``` bash
-amixer set Master 65536
+wpctl get-volume @DEFAULT_AUDIO_SINK@ # get volume
+wpctl set-volume @DEFAULT_SINK@ 5%+ # increase by 5%
+wpctl set-volume @DEFAULT_SINK@ 5%- #decrease by 5%
 ```
-with a value between 0 and 65536
-
 
 ---
 
