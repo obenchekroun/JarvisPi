@@ -64,6 +64,15 @@ except Exception as _de:
     EyeDisplay = None
     STATE_SLEEPING = STATE_IDLE = STATE_LISTENING = STATE_SPEAKING = None
 
+try:
+    from led import LEDDisplay, LED_STATE_SLEEPING, LED_STATE_IDLE, LED_STATE_LISTENING, LED_STATE_SPEAKING, LED_STATE_ON, LED_STATE_OFF, LED_STATE_FADING 
+    LED_AVAILABLE = True
+except Exception as _de:
+    print(f"LEDs not available: {_de}")
+    LED_AVAILABLE = False
+    LEDDisplay = None
+    LED_STATE_SLEEPING = LED_STATE_IDLE = LED_STATE_LISTENING = LED_STATE_SPEAKING = LED_STATE_ON = LED_STATE_OFF = LED_STATE_FADING = None
+    
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -157,37 +166,6 @@ INSTRUCTIONS = (
 # ---------------------------------------------------------------------------
 
 # GPIO Setup
-GPIO.setwarnings(False)
-
-GPIO.setmode(GPIO.BCM)
-led1_pin=18
-led2_pin=23
-
-GPIO.setup(led1_pin, GPIO.OUT)
-GPIO.output(led1_pin, GPIO.LOW)
-
-GPIO.setup(led2_pin, GPIO.OUT)
-GPIO.output(led2_pin, GPIO.LOW)
-
-def fade_leds(event):
-    pwm1 = GPIO.PWM(led1_pin, 200)
-    pwm2 = GPIO.PWM(led2_pin, 200)
-
-    event.clear()
-
-    while not event.is_set():
-        pwm1.start(0)
-        pwm2.start(0)
-        for dc in range(0, 101, 5):
-            pwm1.ChangeDutyCycle(dc)  
-            pwm2.ChangeDutyCycle(dc)
-            time.sleep(0.05)
-        time.sleep(0.75)
-        for dc in range(100, -1, -5):
-            pwm1.ChangeDutyCycle(dc)                
-            pwm2.ChangeDutyCycle(dc)
-            time.sleep(0.05)
-        time.sleep(0.75)
 
 
 
@@ -334,8 +312,8 @@ def listen_for_wake_word(shutdown_flag) -> bool:
             pcm = list(struct.unpack_from(f"{porcupine.frame_length}h", data))
             if porcupine.process(pcm) >= 0:
                 print(f'Wake-Word "{WAKE_WORD}" detected!', flush=True)
-                GPIO.output(led1_pin, GPIO.HIGH) # LED on
-                GPIO.output(led2_pin, GPIO.HIGH) # LED on
+                #GPIO.output(led1_pin, GPIO.HIGH) # LED on
+                #GPIO.output(led2_pin, GPIO.HIGH) # LED on
                 detected = True
                 break
     except Exception as e:
@@ -521,7 +499,7 @@ async def realtime_session(
             }
         }))
 
-        # Trigger Peter's opening greeting immediately
+        # Trigger PeterJarvis's opening greeting immediately
         #await ws.send(json.dumps({"type": "response.create"}))
 
         ai_speaking = False
@@ -590,9 +568,9 @@ async def realtime_session(
                         if display:
                             display.set_state(STATE_SPEAKING)
                             display.clear_text()
+                        if led:
+                            led.set_state(LED_STATE_SPEAKING)
                     audio_bytes = base64.b64decode(event["delta"])
-                    # t_fade = threading.Thread(target=fade_leds, args=(led_event,)) # A vérifier
-                    # t_fade.start() # A vérifier
                     await loop.run_in_executor(None, player.write, audio_bytes)
 
                 elif etype == "response.audio_transcript.delta":
@@ -605,6 +583,8 @@ async def realtime_session(
                     ai_speaking = False
                     if display:
                         display.set_state(STATE_IDLE)
+                    if led:
+                        led.set_state(LED_STATE_IDLE)
                     await asyncio.sleep(6)
                     flushed = 0
                     while not recorder.audio_queue.empty():
@@ -639,6 +619,8 @@ async def realtime_session(
                     if display:
                         display.set_state(STATE_LISTENING)
                         display.clear_text()
+                    if led:
+                        led.set_state(LED_STATE_LISTENING)
 
                 elif etype == "error":
                     print(f"\nOpenAI error: {json.dumps(event, ensure_ascii=False)}", flush=True)
@@ -653,7 +635,7 @@ async def realtime_session(
                     "response.audio.done", "response.audio_transcript.delta",
                     "conversation.item.input_audio_transcription.delta",
                 }:
-                    print(f"DEBUG: Unbekanntes Event: {etype}", flush=True)
+                    print(f"DEBUG: Unknown event: {etype}", flush=True)
 
         # Run send and receive concurrently; end on global shutdown OR inactivity
         t1 = asyncio.create_task(send_audio())
@@ -704,6 +686,10 @@ def main():
     if display:
         display.start()
 
+    led = LEDDisplay() if LED_AVAILABLE else None
+    if led:
+        led.start()
+
     player   = AudioPlayer()
     recorder = AudioRecorder()
     player.start()
@@ -714,7 +700,7 @@ def main():
     stop_event = asyncio.Event()
 
     # event flag for led
-    # led_event = threading.Event()
+    #led_event = threading.Event()
 
     # shutdown_flag for the synchronous wake-word thread (threading.Event)
     _shutdown_flag = threading.Event()
@@ -741,6 +727,8 @@ def main():
                 if display:
                     display.set_state(STATE_SLEEPING)
                     display.set_text("")
+                if led:
+                    led.set_state(LED_STATE_SLEEPING)
 
                 detected = await loop.run_in_executor(
                     None, listen_for_wake_word, _shutdown_flag
@@ -753,9 +741,11 @@ def main():
             # ── ACTIVE - Microphone + OpenAI session ─────────────────────────
             if display:
                 display.set_state(STATE_IDLE)
+            if led:
+                led.set_state(LED_STATE_IDLE)
 
             recorder.start()
-            print("--- Voice mode active. Talk to Peter! ---")
+            print("--- Voice mode active. Talk to Jarvis! ---")
 
             # Reconnect loop within an active session
             # (Retries on network drops, but not on inactivity timeout)
@@ -775,8 +765,8 @@ def main():
                 # Clean exit: checking if caused by inactivity or global shutdown
                 if session_stop.is_set() and not stop_event.is_set():
                     # Inactivity -> End session, return to wake-word
-                    GPIO.output(led1_pin, GPIO.LOW)
-                    GPIO.output(led2_pin, GPIO.LOW)
+                    #GPIO.output(led1_pin, GPIO.LOW)
+                    #GPIO.output(led2_pin, GPIO.LOW)
                     break
                 break  # stop_event or normal termination
 
@@ -800,6 +790,8 @@ def main():
         recorder.stop()
         if display:
             display.stop()
+        if led:
+            led.stop()
         loop.close()
 
 
