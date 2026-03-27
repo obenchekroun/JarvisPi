@@ -176,4 +176,4 @@ class LEDDisplay:
             #time.sleep(0.75)
             time.sleep(0.4)
 
-        self.set_state(LED_STATE_LISTENING)
+        self.set_state(LED_STATE_IDLE)

@@ -191,8 +191,6 @@ Then click on "+ Create new secret key" to create your new secret API key. Copy 
 Edit `main.py` and set:
 
 ```python
-OPENAI_API_KEY       = "sk-..."       # Your OpenAI API key
-PORCUPINE_ACCESS_KEY = "..."          # Your Picovoice access key (free)
 WAKE_WORD            = "jarvis"     # Built-in keyword, or "custom"
 WAKE_WORD_MODEL_PATH = ""             # Path to .ppn file if WAKE_WORD = "custom"
 INACTIVITY_TIMEOUT   = 5            # Seconds of silence before going back to sleep
@@ -206,7 +204,22 @@ INSTRUCTIONS         = "..."          # System prompt / personality
 **Custom keyword** (e.g. "Hey Peter"):
 Go to [console.picovoice.ai](https://console.picovoice.ai) → Wake Word → create your keyword → download the `.ppn` file for Raspberry Pi → set `WAKE_WORD = "custom"` and `WAKE_WORD_MODEL_PATH = "/path/to/file.ppn"`.
 
+### Configure API Keys
+Copy the `.env.example` file into `.env` and edit it's content with the correct API keys.
+``` bash
+cp .example.env .env
+nano .env
+```
+
+``` bash
+OPENAI_API_KEY="<your_api_key_here>"
+PORCUPINE_ACCESS_KEY="<your_api_key_here>"
+```
+
 ### 8. Autostart (systemd)
+``` bash
+chmod +x launcher.sh
+```
 
 ```bash
 sudo nano /etc/systemd/system/jarvispi.service
@@ -214,14 +227,14 @@ sudo nano /etc/systemd/system/jarvispi.service
 
 ```ini
 [Unit]
-Description=OpenLexa AI Voice Assistant
+DescriptionJarvisPi AI Voice Assistant
 After=network-online.target bluetooth.target sound.target
 Wants=network-online.target
 
 [Service]
 User=pi
 WorkingDirectory=/home/pi/JarvisPi
-ExecStart=/usr/bin/python3 /home/pi/JarvisPi/launcher.py
+ExecStart=/home/pi/JarvisPi/launcher.sh
 Restart=on-failure
 RestartSec=5
 Environment=XDG_RUNTIME_DIR=/run/user/1000
@@ -242,7 +255,7 @@ sudo systemctl start jarvispi.service
 ### 8. Run manually
 
 ```bash
-python3 main.py
+set -a; . ./.env; set +a; python3 main.py
 ```
 
 

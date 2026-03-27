@@ -47,6 +47,8 @@ import sys
 import threading
 import time
 
+import RPi.GPIO as GPIO
+
 try:
     import websockets
 except ImportError:
@@ -75,14 +77,19 @@ except Exception as _de:
 # Configuration
 # ---------------------------------------------------------------------------
 
-OPENAI_API_KEY = ""
+#OPENAI_API_KEY = ""
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 WS_URL      = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview"
-VOICE       = "verse"   # alloy, ash, ballad, coral, echo, fable,
+VOICE       = "verse"    # alloy, ash, ballad, coral, echo, fable,
                          # onyx, nova, sage, shimmer, verse
 SAMPLE_RATE = 24000      # Hz — OpenAI Realtime uses 24 kHz PCM16 mono
 CHUNK_MS    = 100        # ms per audio chunk sent to OpenAI
 CHUNK_SIZE  = SAMPLE_RATE * 2 * CHUNK_MS // 1000  # bytes (16-bit = 2 bytes/sample)
+
+RESET_PIN = 26           # GPIO number for reset button
+LED_PIN_1 = 18           # GPIO number for LED1
+LED_PIN_2 = 23           # GPIO number for LED2
 
 # ---------------------------------------------------------------------------
 # Wake-Word Configuration (Porcupine — offline, ~1 % CPU on Pi Zero)
@@ -94,7 +101,8 @@ CHUNK_SIZE  = SAMPLE_RATE * 2 * CHUNK_MS // 1000  # bytes (16-bit = 2 bytes/samp
 # 3. Create your own keyword (.ppn file) using the Picovoice Console
 #    and set the path in WAKE_WORD_MODEL_PATH.
 # Leave empty -> Wake word disabled (always active as before)
-PORCUPINE_ACCESS_KEY  = ""
+#PORCUPINE_ACCESS_KEY  = ""
+PORCUPINE_ACCESS_KEY  = os.getenv("PORCUPINE_ACCESS_KEY")
 WAKE_WORD             = "jarvis"    # Built-in keyword name OR "custom"
 WAKE_WORD_MODEL_PATH  = ""          # Path to the .ppn file (only if WAKE_WORD="custom")
 WAKE_WORD_SAMPLE_RATE = 16000       # Porcupine always expects 16 kHz
@@ -641,6 +649,23 @@ async def realtime_session(
         await ws.close()
         await asyncio.gather(t1, t2, return_exceptions=True)
 
+        
+# ---------------------------------------------------------------------------
+# Interrupt button
+# ---------------------------------------------------------------------------
+
+def _wait_for_interrupt_button(event):
+    GPIO.setmode(GPIO.BCM) # use GPIO numbering for buttons
+    GPIO.setup(RESET_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    
+    while True:
+        if GPIO.input(RESET_PIN) == False:
+            print("DEBUG: session interrupted with button")
+            event.set()
+            break
+        
+        time.sleep(0.1)
+    
 
 # ---------------------------------------------------------------------------
 # Entry point
@@ -735,10 +760,8 @@ def main():
             # (Retries on network drops, but not on inactivity timeout)
             while not stop_event.is_set():
                 session_stop = asyncio.Event()
+                threading.Thread(target=_wait_for_interrupt_button, args=(session_stop,), daemon=True).start()
                 try:
-                    # await realtime_session(
-                    #     player, recorder, stop_event, session_stop, display
-                    # )
                     await realtime_session(
                         player, recorder, stop_event, session_stop, display, led
                     )
