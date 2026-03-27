@@ -204,7 +204,7 @@ INSTRUCTIONS         = "..."          # System prompt / personality
 **Custom keyword** (e.g. "Hey Peter"):
 Go to [console.picovoice.ai](https://console.picovoice.ai) → Wake Word → create your keyword → download the `.ppn` file for Raspberry Pi → set `WAKE_WORD = "custom"` and `WAKE_WORD_MODEL_PATH = "/path/to/file.ppn"`.
 
-### Configure API Keys
+#### Configure API Keys
 Copy the `.env.example` file into `.env` and edit it's content with the correct API keys.
 ``` bash
 cp .example.env .env
