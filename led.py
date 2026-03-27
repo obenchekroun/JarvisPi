@@ -248,14 +248,14 @@ class LEDDisplay:
                 #     pygame.draw.line(canvas, EYE_MID,
                 #                      (cx - EYE_RX, cy), (cx + EYE_RX, cy), 3)
             elif state == LED_STATE_FADING:
-                t_fade = threading.Thread(target=self._fade_leds, args=(self._event,))
+                t_fade = threading.Thread(target=self._fade_leds, daemon=True, args=(self._event,))
                 t_fade.start()
                 #draw_eye(canvas, L_EYE[0], L_EYE[1], px, py)
                 #draw_eye(canvas, R_EYE[0], R_EYE[1], px, py)
                 
             else:
-                GPIO.output(self._LED1_pin, GPIO.HIGH) # LED on
-                GPIO.output(self._LED2_pin, GPIO.HIGH) # LED on
+                GPIO.output(self._LED1_pin, GPIO.LOW) # LED off
+                GPIO.output(self._LED2_pin, GPIO.LOW) # LED off
 
             # # --- Upscale to 800x480 ---
             # scaled = pygame.transform.scale(canvas, (OUT_W, OUT_H))
@@ -267,7 +267,7 @@ class LEDDisplay:
             #     self._draw_text(screen, font, text, col)
 
             #pygame.display.flip()
-            #clock.tick(FPS)
+            #clock.tick(FPS)n
             time.sleep(0.1)
 
         #pygame.quit()

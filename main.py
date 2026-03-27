@@ -64,16 +64,18 @@ except Exception as _de:
     EyeDisplay = None
     STATE_SLEEPING = STATE_IDLE = STATE_LISTENING = STATE_SPEAKING = None
 
-try:
-    from led import LEDDisplay, LED_STATE_SLEEPING, LED_STATE_IDLE, LED_STATE_LISTENING, LED_STATE_SPEAKING, LED_STATE_ON, LED_STATE_OFF, LED_STATE_FADING 
-    LED_AVAILABLE = True
-except Exception as _de:
-    print(f"LEDs not available: {_de}")
-    LED_AVAILABLE = False
-    LEDDisplay = None
-    LED_STATE_SLEEPING = LED_STATE_IDLE = LED_STATE_LISTENING = LED_STATE_SPEAKING = LED_STATE_ON = LED_STATE_OFF = LED_STATE_FADING = None
-    
 
+LED_AVAILABLE = False
+# try:
+#     from led import LEDDisplay, LED_STATE_SLEEPING, LED_STATE_IDLE, LED_STATE_LISTENING, LED_STATE_SPEAKING, LED_STATE_ON, LED_STATE_OFF, LED_STATE_FADING 
+#     LED_AVAILABLE = True
+# except Exception as _de:
+#     print(f"LEDs not available: {_de}")
+#     LED_AVAILABLE = False
+#     LEDDisplay = None
+#     LED_STATE_SLEEPING = LED_STATE_IDLE = LED_STATE_LISTENING = LED_STATE_SPEAKING = LED_STATE_ON = LED_STATE_OFF = LED_STATE_FADING = None
+
+    
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -101,7 +103,7 @@ PORCUPINE_ACCESS_KEY  = ""
 WAKE_WORD             = "jarvis"  # Built-in keyword name OR "custom"
 WAKE_WORD_MODEL_PATH  = ""          # Path to the .ppn file (only if WAKE_WORD="custom")
 WAKE_WORD_SAMPLE_RATE = 16000       # Porcupine always expects 16 kHz
-INACTIVITY_TIMEOUT    = 5          # Seconds of silence -> close session, enter sleep mode
+INACTIVITY_TIMEOUT    = 10          # Seconds of silence -> close session, enter sleep mode
 
 # PipeWire needs XDG_RUNTIME_DIR to locate the user session socket
 PIPEWIRE_ENV = {**os.environ, "XDG_RUNTIME_DIR": "/run/user/1000"}
@@ -689,6 +691,7 @@ def main():
     led = LEDDisplay() if LED_AVAILABLE else None
     if led:
         led.start()
+        print("ici\n")
 
     player   = AudioPlayer()
     recorder = AudioRecorder()
