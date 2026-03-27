@@ -47,8 +47,6 @@ import sys
 import threading
 import time
 
-import RPi.GPIO as GPIO
-
 try:
     import websockets
 except ImportError:
@@ -65,17 +63,6 @@ except Exception as _de:
     STATE_SLEEPING = STATE_IDLE = STATE_LISTENING = STATE_SPEAKING = None
 
 
-LED_AVAILABLE = False
-# try:
-#     from led import LEDDisplay, LED_STATE_SLEEPING, LED_STATE_IDLE, LED_STATE_LISTENING, LED_STATE_SPEAKING, LED_STATE_ON, LED_STATE_OFF, LED_STATE_FADING 
-#     LED_AVAILABLE = True
-# except Exception as _de:
-#     print(f"LEDs not available: {_de}")
-#     LED_AVAILABLE = False
-#     LEDDisplay = None
-#     LED_STATE_SLEEPING = LED_STATE_IDLE = LED_STATE_LISTENING = LED_STATE_SPEAKING = LED_STATE_ON = LED_STATE_OFF = LED_STATE_FADING = None
-
-    
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -162,13 +149,6 @@ INSTRUCTIONS = (
     "Be conversational, natural, and concise — like a smart friend, not a robot. "
     "You can help with anything: questions, conversation, ideas."
 )
-
-# ---------------------------------------------------------------------------
-# LEDs
-# ---------------------------------------------------------------------------
-
-# GPIO Setup
-
 
 
 # ---------------------------------------------------------------------------
@@ -314,8 +294,6 @@ def listen_for_wake_word(shutdown_flag) -> bool:
             pcm = list(struct.unpack_from(f"{porcupine.frame_length}h", data))
             if porcupine.process(pcm) >= 0:
                 print(f'Wake-Word "{WAKE_WORD}" detected!', flush=True)
-                #GPIO.output(led1_pin, GPIO.HIGH) # LED on
-                #GPIO.output(led2_pin, GPIO.HIGH) # LED on
                 detected = True
                 break
     except Exception as e:
@@ -501,8 +479,8 @@ async def realtime_session(
             }
         }))
 
-        # Trigger PeterJarvis's opening greeting immediately
-        #await ws.send(json.dumps({"type": "response.create"}))
+        # Trigger Jarvis's opening greeting immediately
+        await ws.send(json.dumps({"type": "response.create"}))
 
         ai_speaking = False
         _inactivity_task = None
@@ -570,8 +548,6 @@ async def realtime_session(
                         if display:
                             display.set_state(STATE_SPEAKING)
                             display.clear_text()
-                        if led:
-                            led.set_state(LED_STATE_SPEAKING)
                     audio_bytes = base64.b64decode(event["delta"])
                     await loop.run_in_executor(None, player.write, audio_bytes)
 
@@ -585,8 +561,6 @@ async def realtime_session(
                     ai_speaking = False
                     if display:
                         display.set_state(STATE_IDLE)
-                    if led:
-                        led.set_state(LED_STATE_IDLE)
                     await asyncio.sleep(6)
                     flushed = 0
                     while not recorder.audio_queue.empty():
@@ -599,7 +573,6 @@ async def realtime_session(
                         print(f"DEBUG: {flushed} Echo chunks discarded.", flush=True)
                     recorder.muted = False
                     print("DEBUG: AI finished — mic active.", flush=True)
-                    # led_event.set()
                     # Restart inactivity countdown after each AI response
                     await _arm_inactivity_timer()
 
@@ -621,9 +594,7 @@ async def realtime_session(
                     if display:
                         display.set_state(STATE_LISTENING)
                         display.clear_text()
-                    if led:
-                        led.set_state(LED_STATE_LISTENING)
-
+                        
                 elif etype == "error":
                     print(f"\nOpenAI error: {json.dumps(event, ensure_ascii=False)}", flush=True)
 
@@ -683,15 +654,9 @@ def main():
     mode_str = f'Wake-Word "{WAKE_WORD}"' if wake_word_mode else "Always-On"
     print(f"Initializing JarvisPi — Mode: {mode_str}")
 
-
     display = EyeDisplay() if DISPLAY_AVAILABLE else None
     if display:
         display.start()
-
-    led = LEDDisplay() if LED_AVAILABLE else None
-    if led:
-        led.start()
-        print("ici\n")
 
     player   = AudioPlayer()
     recorder = AudioRecorder()
@@ -701,9 +666,6 @@ def main():
     loop       = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     stop_event = asyncio.Event()
-
-    # event flag for led
-    #led_event = threading.Event()
 
     # shutdown_flag for the synchronous wake-word thread (threading.Event)
     _shutdown_flag = threading.Event()
@@ -730,8 +692,6 @@ def main():
                 if display:
                     display.set_state(STATE_SLEEPING)
                     display.set_text("")
-                if led:
-                    led.set_state(LED_STATE_SLEEPING)
 
                 detected = await loop.run_in_executor(
                     None, listen_for_wake_word, _shutdown_flag
@@ -744,8 +704,6 @@ def main():
             # ── ACTIVE - Microphone + OpenAI session ─────────────────────────
             if display:
                 display.set_state(STATE_IDLE)
-            if led:
-                led.set_state(LED_STATE_IDLE)
 
             recorder.start()
             print("--- Voice mode active. Talk to Jarvis! ---")
@@ -768,8 +726,6 @@ def main():
                 # Clean exit: checking if caused by inactivity or global shutdown
                 if session_stop.is_set() and not stop_event.is_set():
                     # Inactivity -> End session, return to wake-word
-                    #GPIO.output(led1_pin, GPIO.LOW)
-                    #GPIO.output(led2_pin, GPIO.LOW)
                     break
                 break  # stop_event or normal termination
 
@@ -793,8 +749,6 @@ def main():
         recorder.stop()
         if display:
             display.stop()
-        if led:
-            led.stop()
         loop.close()
 
 
