@@ -193,7 +193,7 @@ Edit `main.py` and set:
 ```python
 WAKE_WORD            = "jarvis"     # Built-in keyword, or "custom"
 WAKE_WORD_MODEL_PATH = ""             # Path to .ppn file if WAKE_WORD = "custom"
-INACTIVITY_TIMEOUT   = 5            # Seconds of silence before going back to sleep
+INACTIVITY_TIMEOUT   = 8            # Seconds of silence before going back to sleep
 VOICE                = "verse"        # AI voice (alloy, echo, nova, shimmer, verse, ...)
 INSTRUCTIONS         = "..."          # System prompt / personality
 ```
@@ -207,7 +207,7 @@ Go to [console.picovoice.ai](https://console.picovoice.ai) → Wake Word → cre
 #### Configure API Keys
 Copy the `.env.example` file into `.env` and edit it's content with the correct API keys.
 ``` bash
-cp .example.env .env
+cp .env.example .env
 nano .env
 ```
 
@@ -274,13 +274,17 @@ wpctl set-volume @DEFAULT_SINK@ 5%- #decrease by 5%
 
 ```
 jarvispi/
-├── launcher.py       # Boot launcher — waits for USB mic, countdown, then starts main.py
-├── main.py           # Main application — wake-word loop, audio pipeline, OpenAI session
+├── .env.example      # example for .env that contains API keys (OpenAI and picovoice porcupine)
 ├── display.py        # Pygame HDMI display (optional, auto-detected)
-├── requirements.txt  # Python dependencies
-├── README.md         # This file
 ├── img               # images for Github
+├── launcher.py       # Boot launcher — waits for USB mic, countdown, then starts main.py
+├── launcher.sh       # Launcher as a shell script - load env variables and calls launcher.py
+├── led.py            # LEDs x2 as status indicator (optional)
+├── main.py           # Main application — wake-word loop, audio pipeline, OpenAI session
 ├── ppn               # Custom wake words
+├── README.md         # This file
+├── requirements.txt  # Python dependencies
+├── stl               # STL files for case
 └── archive/          # Old debug scripts (not needed for running)
 ```
 
