@@ -268,6 +268,15 @@ wpctl set-volume @DEFAULT_SINK@ 5%+ # increase by 5%
 wpctl set-volume @DEFAULT_SINK@ 5%- #decrease by 5%
 ```
 
+### 10. Schedule a `cron` restart of the service
+
+Adding to root `crontab` in order to restart the service every 4 hours, in case of failure ...
+``` bash
+sudo crontab -e
+0 */4 * * * systemctl restart jarvispi.service
+```
+
+
 ---
 
 ## File Structure
