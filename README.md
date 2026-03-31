@@ -252,6 +252,9 @@ sudo systemctl start jarvispi.service
 > **Why `launcher.py` instead of `main.py` directly?**
 > PipeWire is a user-level service and may not be fully initialised when the system service starts. `launcher.py` polls `pactl list sources` until the USB microphone (`alsa_input.*`) appears, then shows a countdown on the display before handing off to `main.py` via `os.execv`. This eliminates the race condition where Porcupine starts with a non-functional audio source and only reacts to very loud sounds.
 
+#### per-user service manager
+If the service is running under the per-user service manager – which is only active when that user logs in, use `loginctl enable-linger pi` to make that user's service manager start on boot.
+
 ### 8. Run manually
 
 ```bash
@@ -275,7 +278,6 @@ Adding to root `crontab` in order to restart the service every 4 hours, in case 
 sudo crontab -e
 0 */4 * * * systemctl restart jarvispi.service
 ```
-
 
 ---
 
