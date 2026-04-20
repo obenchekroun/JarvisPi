@@ -179,7 +179,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 1. Create a free account at [console.picovoice.ai](https://console.picovoice.ai)
 2. Copy your **Access Key** from the dashboard
-3. Paste it into `main.py → PORCUPINE_ACCESS_KEY`
+3. Paste it into `.env → PORCUPINE_ACCESS_KEY`
 
 ### 6. OpenAI account
 
