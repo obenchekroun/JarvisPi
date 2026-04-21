@@ -53,16 +53,36 @@ FPS = 6                          # Event polling rate; draws only happen on dirt
 EYE_AREA_H  = 65    # Height of eye area in the 200x120 canvas
 TEXT_AREA_Y = 280   # Y start of text area on the 800x480 output
 
-# Colour palette
-DARK_BG    = (10,  28,  10)    # Dark green background (full screen)
-EYE_RING   = (30,  80,  30)    # Outer eye ring
-EYE_MID    = (60, 150,  50)    # Iris mid tone
-EYE_BRIGHT = (140, 220, 100)   # Bright iris inner area
-PUPIL_COL  = (5,   15,   5)    # Pupil (near black)
-HIGHLIGHT  = (220, 255, 200)   # Pupil highlight dot
-TEXT_COL   = (140, 220, 100)   # Active text (matches iris bright)
-TEXT_DIM   = (50,  100,  40)   # Dimmed text (idle state)
-SEP_COL    = (30,   70,  30)   # Separator line between eye/text areas
+# Colour palette - green
+# DARK_BG    = (10,  28,  10)    # Dark green background (full screen)
+# EYE_RING   = (30,  80,  30)    # Outer eye ring
+# EYE_MID    = (60, 150,  50)    # Iris mid tone
+# EYE_BRIGHT = (140, 220, 100)   # Bright iris inner area
+# PUPIL_COL  = (5,   15,   5)    # Pupil (near black)
+# HIGHLIGHT  = (220, 255, 200)   # Pupil highlight dot
+# TEXT_COL   = (140, 220, 100)   # Active text (matches iris bright)
+# TEXT_DIM   = (50,  100,  40)   # Dimmed text (idle state)
+# SEP_COL    = (30,   70,  30)   # Separator line between eye/text areas
+# Colour palette - white
+DARK_BG    = (15,  15,  20)    # Deep charcoal (presque noir avec une pointe de bleu)
+EYE_RING   = (40,  45,  55)    # Slate grey (anneau externe discret)
+EYE_MID    = (110, 120, 140)   # Cold steel (ton moyen de l'iris)
+EYE_BRIGHT = (230, 240, 255)   # Ice white (zone lumineuse de l'iris)
+PUPIL_COL  = (5,   5,   8)     # Deep black pupil
+HIGHLIGHT  = (255, 255, 255)   # Pure white (éclat de lumière pur)
+TEXT_COL   = (230, 240, 255)   # Active text (assorti à l'iris brillant)
+TEXT_DIM   = (80,  90,  105)   # Dimmed text (gris bleuté pour l'inactif)
+SEP_COL    = (35,  40,  50)    # Subtle separator
+# Coulour palette - neon
+DARK_BG    = (10,  10,  20)    # Deep void (presque noir avec une pointe de violet/bleu)
+EYE_RING   = (60,  60,  70)    # Dark metal (anneau externe mécanique)
+EYE_MID    = (0,   255, 255)   # Electric Cyan (iris principal qui clignote)
+EYE_BRIGHT = (255, 0,   255)   # Glitch Magenta (la zone centrale, comme une erreur système)
+PUPIL_COL  = (5,   5,   8)     # Deep black pupil
+HIGHLIGHT  = (255, 255, 255)   # Pure white (éclat de lumière intense)
+TEXT_COL   = (0,   255, 255)   # Active text (cyan néon)
+TEXT_DIM   = (50,  10,  60)    # Dimmed text (violet très sombre pour l'inactif)
+SEP_COL    = (100, 0,   120)   # Ultraviolet separator
 
 # Eye geometry (canvas coordinates)
 L_EYE           = (58,  33)
@@ -73,6 +93,7 @@ MAX_PUPIL_OFFSET = 6            # Max random pupil displacement in px
 
 # Korean font path (installed via `sudo apt install fonts-nanum`)
 _KOREAN_FONT = "/usr/share/fonts/truetype/nanum/NanumSquareRoundR.ttf"
+_MAIN_FONT = "fonts/JetBrainsMono-Regular.ttf"
 
 # States (mirrored in main.py)
 STATE_SLEEPING  = "sleeping"   # Wake-word mode: eyes closed
@@ -196,9 +217,10 @@ class EyeDisplay:
         pygame.font.init()
         pygame.mouse.set_visible(False)
 
-        # Load Korean-capable font; fall back to pygame default
+        # Load main font; fall back to pygame default
         try:
-            font = pygame.font.Font(_KOREAN_FONT, 38)
+            #font = pygame.font.Font(_KOREAN_FONT, 38)
+            font = pygame.font.Font(_MAIN_FONT, 38)
         except Exception:
             font = pygame.font.Font(None, 42)
 
