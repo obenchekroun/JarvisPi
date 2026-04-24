@@ -88,8 +88,8 @@ CHUNK_MS    = 100        # ms per audio chunk sent to OpenAI
 CHUNK_SIZE  = SAMPLE_RATE * 2 * CHUNK_MS // 1000  # bytes (16-bit = 2 bytes/sample)
 
 RESET_PIN = 26           # GPIO number for reset button
-LED_PIN_1 = 18           # GPIO number for LED1
-LED_PIN_2 = 23           # GPIO number for LED2
+#LED_PIN_1 = 18           # GPIO number for LED1
+#LED_PIN_2 = 23           # GPIO number for LED2
 
 # ---------------------------------------------------------------------------
 # Wake-Word Configuration (Porcupine — offline, ~1 % CPU on Pi Zero)

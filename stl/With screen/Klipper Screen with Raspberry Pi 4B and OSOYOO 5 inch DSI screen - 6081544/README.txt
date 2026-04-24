@@ -1,0 +1,4 @@
+Klipper Screen with Raspberry Pi 4B and OSOYOO 5 inch DSI screen by ratchetfinesse on Thingiverse: https://www.thingiverse.com/thing:6081544
+
+Summary:
+I designed my own case for Klipper / Klipperscreen with the following components:Raspberry Pi 4BOSOYOO 5" DSI touchscreenGeekpi Raspberry PI Aluminum Heatsink4x M3 16mm flat head screws2x M3 16-12mm button head screws2x M2.5 screws (I forget what length)6x M3 brass inserts (optional)There's 2 versions of the bottom and top bezel. The files labeled insert have larger holes for the inserts. The 2 other files have smaller holes that can be self tapped with the M3 screws.The 2x M2.5 screws are to mount heatsink to the LCD standoffs, the screws provided were too short.Should work for Octoprint + whatever touchscreen plugins, as it's just software. But I didn't test it on this OSOYOO screen.

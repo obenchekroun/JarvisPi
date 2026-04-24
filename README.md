@@ -40,6 +40,7 @@ The following steps are required to run JarvisGPT on a Raspberry Pi :
 | 2x **LED** *(version 1)* | LED eyes, no display | [Adafruit page](https://www.adafruit.com/product/5430) | version with LED eyes, no display, in Jarvis enclosure |
 | 2x **resistor 220 Ohms**  *(version 1)* | resistor for the LEDs | [Adafruit page](https://www.adafruit.com/product/2780) | version with LED eyes, no display, in Jarvis enclosure |
 | **Heatsink**  | *Optional* heatsinks | - | Highly recommended especially in closed case |
+| **Button**  | *Optional* button to interrupt jarvis | - | Highly recommended as you may want to make it stop when launched on a tirade |
 | **Display** *(version 2)* | 3.5" HDMI Display | - | - |
 | **MicroSD + Power** | MicroSD 16 GB+ & USB PSU | - | - |
 | **Audio server** | PipeWire |
@@ -140,6 +141,23 @@ The 4× upscale creates a visible pixel grid that gives the robot face a retro L
 | `listening` | Open | User is speaking |
 | `speaking` | Open | AI is speaking |
 
+
+## Hardware wiring
+
+Connect the screen following the manufacturer's instructions
+
+### Using leds :
+
+JarvisPi includes the ability to light up LEDs that help show the status of the program. If connected, the LEDs will light up when the program hears the wake word and will pulse after the user finishes their query and while the assistant provides its response. The proper wiring of the LEDs and resistors to the Raspberry Pi is shown on this diagram. The LEDs are controlled by GPIO pins 18 and 24. The use of the LEDs is optional and will not otherwise impact the functionality of JarvisPi..
+
+![LED Wiring](/img/led_wiring.jpg?raw=true)
+
+LED pins can be customised in `led.py`, in the `init` function of the class.
+
+### Using button
+
+The button is wired between `ground` and `GPIO 26`.
+The pin can be customised with the variable `RESET_PIN = 26` in `main.py`
 
 ## Setup
 
@@ -281,6 +299,7 @@ sudo crontab -e
 
 
 
+
 ---
 
 ## File Structure
@@ -316,6 +335,8 @@ jarvispi/
 | VAD sensitivity | `main.py → turn_detection.threshold` | 0.0–1.0, lower = more sensitive |
 | Eye colours | `display.py → colour constants` | RGB tuples at the top of the file |
 | Display layout | `display.py → EYE_AREA_H, TEXT_AREA_Y` | Adjust the eye/text split point |
+| Reset button pin | `main.py → RESET_PIN` | GPIO number of the reset button |
+| LED Pins | `led.py → self._LED1_pin   = 18, self._LED2_pin   = 23` | GPIO number of the two leds |
 
 
 
